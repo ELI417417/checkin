@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日打卡</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .container {
+            text-align: center;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #07c160;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .day {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .checked {
+            background-color: #07c160;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>每日打卡</h1>
+        <p>本月已打卡 <span id="daysCount">0</span> 天</p>
+        <button onclick="recordCheckIn()">点击打卡</button>
+        <div class="calendar" id="calendar"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
+    <script>
+        // 初始化 LeanCloud（免费云存储服务）
+        const APP_ID = 'E5SnJeKAvovDE3LvQ0W6xn1H-MdYXbMMI';
+        const APP_KEY = 'xsVkjgwj9ggo7OBc9oBxfNJM';
+        AV.init({ appId: APP_ID, appKey: APP_KEY });
+
+        // 获取当前月份的所有日期
+        function generateCalendar() {
+            const calendar = document.getElementById('calendar');
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            
+            // 生成当月日期
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            calendar.innerHTML = '';
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const div = document.createElement('div');
+                div.className = 'day';
+                div.textContent = day;
+                calendar.appendChild(div);
+            }
+        }
+
+        // 打卡记录处理
+        async function recordCheckIn() {
+            const today = new Date().toISOString().split('T')[0];
+            const CheckIn = AV.Object.extend('CheckIn');
+            const query = new AV.Query('CheckIn');
+            query.equalTo('date', today);
+            
+            try {
+                const result = await query.first();
+                if (result) {
+                    alert('今天已经打卡过了！');
+                } else {
+                    const newCheckIn = new CheckIn();
+                    await newCheckIn.save({ date: today });
+                    updateUI();
+                    alert('打卡成功！');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('打卡失败，请重试');
+            }
+        }
+
+        // 更新界面
+        async function updateUI() {
+            const currentMonth = new Date().getMonth();
+            const query = new AV.Query('CheckIn');
+            query.greaterThan('createdAt', new Date(new Date().getFullYear(), currentMonth, 1));
+            
+            try {
+                const results = await query.find();
+                document.getElementById('daysCount').textContent = results.length;
+                
+                // 更新日历显示
+                results.forEach(checkIn => {
+                    const date = new Date(checkIn.get('createdAt'));
+                    const day = date.getDate();
+                    const days = document.getElementsByClassName('day');
+                    if (day <= days.length) {
+                        days[day - 1].classList.add('checked');
+                    }
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // 初始化
+        generateCalendar();
+        updateUI();
+    </script>
+</body>
+</html>
